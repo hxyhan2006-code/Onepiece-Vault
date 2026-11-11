@@ -25,6 +25,12 @@ await page.goto(url);
 await page.waitForSelector('.empty');
 step('เปิดแอป (ว่าง)');
 
+// ห้ามมีอีโมจิ / ✓ ✗ ใน UI (ใช้ SVG แทน)
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{FE0F}\u{2039}]/u;
+const noEmoji = async (where) => assert.ok(!EMOJI.test(await page.evaluate(() => document.body.innerText)), `พบอีโมจิใน UI: ${where}`);
+await noEmoji('หน้าค้นหา');
+assert.equal(await page.locator('nav .ic').count(), 3);
+
 // เพิ่มตอน
 await page.click('nav [data-tab=episodes]');
 await page.click('#add');
@@ -55,6 +61,8 @@ await page.fill('dialog [name=characters]', 'ลูฟี่, ชังค์ส
 await page.fill('dialog [name=events]', 'กินผลปีศาจ');
 await page.click('dialog button[type=submit]');
 await page.waitForSelector('#scenes .card:has-text("ลูฟี่พบชังค์ส")');
+await noEmoji('หน้ารายละเอียดตอน');
+assert.ok(await page.locator('#scenes .time .ic').count() >= 1);
 step('เพิ่ม Scene + ตรวจเวลา');
 
 // แก้ไข Scene

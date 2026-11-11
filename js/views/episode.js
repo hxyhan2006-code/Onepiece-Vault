@@ -1,6 +1,6 @@
 import * as db from '../db.js';
 import { formatTimecode, parseTimecode } from '../lib/timecode.js';
-import { esc, showDialog, confirmDialog, toast, formatBytes } from '../ui.js';
+import { esc, showDialog, confirmDialog, toast, formatBytes, icon } from '../ui.js';
 import { episodeForm } from './episodes.js';
 
 const listToText = (a) => (a || []).join(', ');
@@ -45,7 +45,7 @@ export function render(root, { data, params, refresh, nav }) {
   const seekTo = params.t != null ? Number(params.t) : null;
 
   root.innerHTML = `
-    <div class="row between"><a class="back" href="#/episodes">‹ ตอนทั้งหมด</a>
+    <div class="row between"><a class="back" href="#/episodes">${icon('back')} ตอนทั้งหมด</a>
       <span><button class="btn small" id="editEp">แก้ไขตอน</button> <button class="btn small ghost" id="delEp">ลบตอน</button></span></div>
     <h2>EP ${ep.number}${ep.title ? ' · ' + esc(ep.title) : ''}</h2>
     <div id="player" class="player">${ep.hasVideo ? '<p class="meta">กำลังโหลดวิดีโอ…</p>' : ''}</div>
@@ -58,7 +58,7 @@ export function render(root, { data, params, refresh, nav }) {
     <div class="row between"><h3>Scene Index (${scenes.length})</h3><button class="btn primary" id="addScene">+ เพิ่ม Scene</button></div>
     <div id="scenes">${scenes.length ? scenes.map((s) => `
       <div class="card" data-id="${esc(s.id)}">
-        <div class="row between"><button class="time" data-seek="${s.start}">▶ ${formatTimecode(s.start)}${s.end != null ? '–' + formatTimecode(s.end) : ''}</button>
+        <div class="row between"><button class="time" data-seek="${s.start}">${icon('play')} ${formatTimecode(s.start)}${s.end != null ? '–' + formatTimecode(s.end) : ''}</button>
           <span><button class="btn small" data-edit="${esc(s.id)}">แก้ไข</button> <button class="btn small ghost" data-del="${esc(s.id)}">ลบ</button></span></div>
         <div class="title">${esc(s.title || '(ไม่มีชื่อฉาก)')}</div>
         <div class="chips">${s.characters.map((c) => `<span class="chip">${esc(c)}</span>`).join('')}${s.events.map((c) => `<span class="chip event">${esc(c)}</span>`).join('')}</div>

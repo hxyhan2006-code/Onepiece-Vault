@@ -1,5 +1,5 @@
 import * as db from '../db.js';
-import { esc, showDialog, toast, formatBytes } from '../ui.js';
+import { esc, showDialog, toast, formatBytes, icon } from '../ui.js';
 
 export function episodeForm(existing, data) {
   return showDialog({
@@ -22,7 +22,7 @@ export function render(root, { data, refresh }) {
     <div class="row between"><h2>ตอนทั้งหมด (${eps.length})</h2><button class="btn primary" id="add">+ เพิ่มตอน</button></div>
     ${eps.length ? eps.map((e) => `<a class="card" href="#/episode/${esc(e.id)}">
         <div class="title">EP ${e.number}${e.title ? ' · ' + esc(e.title) : ''}</div>
-        <div class="meta">${count(e.id)} ฉาก · ${e.hasVideo ? '🎞 ' + esc(e.videoName) + ' (' + formatBytes(e.videoSize) + ')' : 'ยังไม่นำเข้าวิดีโอ'}</div></a>`).join('')
+        <div class="meta">${count(e.id)} ฉาก · ${e.hasVideo ? icon('film') + ' ' + esc(e.videoName) + ' (' + formatBytes(e.videoSize) + ')' : 'ยังไม่นำเข้าวิดีโอ'}</div></a>`).join('')
       : '<div class="empty"><p>ยังไม่มีตอน กด “เพิ่มตอน” เพื่อเริ่มต้น</p></div>'}`;
   root.querySelector('#add').onclick = async () => { if (await episodeForm(null, data)) { toast('เพิ่มตอนแล้ว'); refresh(); } };
 }

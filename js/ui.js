@@ -1,6 +1,9 @@
 // ตัวช่วย UI: escape HTML, toast, dialog
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+/** ไอคอน SVG จาก sprite ใน index.html (ห้ามใช้อีโมจิ) */
+export const icon = (name) => `<svg class="ic" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+
 export function formatBytes(n) {
   if (!n) return '0 B';
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];

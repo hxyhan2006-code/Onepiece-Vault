@@ -1,6 +1,6 @@
 // Service Worker: cache-first สำหรับไฟล์แอป เพื่อใช้งานออฟไลน์
 // เปลี่ยน VERSION ทุกครั้งที่แก้ไฟล์แอป เพื่อให้แคชใหม่
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `onepiece-vault-${VERSION}`;
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './css/style.css',
