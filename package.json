@@ -1,0 +1,12 @@
+{
+  "name": "onepiece-vault",
+  "version": "0.1.0",
+  "description": "Onepiece Vault - PWA ออฟไลน์สำหรับจัดการฟุตเทจอนิเมะในเครื่อง",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/serve.js",
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "node tests/e2e.smoke.mjs"
+  }
+}
