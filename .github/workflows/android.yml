@@ -1,0 +1,77 @@
+name: android-apk
+# ทดสอบ + สร้าง APK ของ Onepiece Vault (แอนดรอยด์) — แยกจาก PWA เดิม
+# รันเมื่อแก้ไฟล์ในโฟลเดอร์ android/ หรือกดรันเอง · ได้ไฟล์ APK ในหน้า Actions > งานที่รัน > Artifacts (เก็บ 14 วัน)
+# กุญแจเซ็นแอป (ทางเลือก): ตั้ง secrets ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS เพื่อให้ติดตั้งทับเวอร์ชันเก่าได้
+on:
+  push:
+    paths: ['android/**', '.github/workflows/android.yml', 'package.json']
+  pull_request:
+    paths: ['android/**', '.github/workflows/android.yml', 'package.json']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: เครื่องมือทดสอบ (ffmpeg + Chromium)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          npm i --no-save --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+      - name: ทดสอบตรรกะ (PWA เดิม + แอนดรอยด์ + เทียบลายนิ้วมือ JS/Java + ตัวเฝ้าความปลอดภัย)
+        run: npm test
+      - name: ทดสอบแอนดรอยด์ใน Chromium (วิดีโอจริงจาก ffmpeg)
+        run: npm run test:android:e2e
+      - name: ทดสอบ PWA เดิม (กันพัง)
+        run: npm run test:e2e
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: เตรียมโปรเจกต์ Android
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: node android/scripts/prepare-wrapper.mjs
+      - name: สร้าง APK
+        working-directory: wrap/android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: ตรวจ APK (ชื่อแพ็กเกจ สิทธิ์ ลายเซ็น)
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          APK=wrap/android/app/build/outputs/apk/debug/app-debug.apk
+          ls -l "$APK"
+          "$BT/aapt" dump badging "$APK" | grep -E "^package:|sdkVersion|targetSdk"
+          "$BT/aapt" dump permissions "$APK"
+          "$BT/apksigner" verify --print-certs "$APK" | grep -E "Verifies|SHA-256 digest" || true
+          # ห้ามมีสิทธิ์เขียน/จัดการไฟล์ทั้งเครื่อง
+          if "$BT/aapt" dump permissions "$APK" | grep -E "MANAGE_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE"; then echo "พบสิทธิ์ที่ไม่อนุญาต"; exit 1; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onepiece-vault-apk
+          path: wrap/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

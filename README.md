@@ -47,3 +47,6 @@ tests/                   unit + e2e
 
 ## แผนต่อยอด
 ผูกวิดีโอหลายไฟล์ต่อตอน · ภาพ thumbnail ต่อ Scene · แท็กและคอลเลกชัน · นำเข้า Scene จาก CSV/SRT
+
+## แอป Android (APK)
+มีเวอร์ชัน APK แยกต่างหากในโฟลเดอร์ [`android/`](android/README.md) (คลังฟุตเทจในเครื่อง จำไฟล์แม้เปลี่ยนชื่อ) สร้างด้วย GitHub Actions `android-apk`

@@ -43,6 +43,13 @@
 - `tests/` unit (`*.test.js`) + e2e (`e2e.smoke.mjs`) · `scripts/serve.js` เซิร์ฟเวอร์ static · `scripts/make-icons.mjs` สร้างไอคอน PNG
 - โมเดลข้อมูล: Episode `{id, number, title, hasVideo, videoName, videoSize}` · Scene `{id, episodeId, start, end|null, title, characters[], events[], notes, updatedAt}` · วิดีโอเก็บเป็น Blob ใน store `videos` คีย์ = id ของตอน (1 ไฟล์ต่อตอน)
 
+## แอป Android (APK) — โฟลเดอร์ `android/` (แยกจาก PWA)
+- Capacitor 7 ห่อ `android/www` · รหัสแอป `com.han.onepiecevault` · สร้าง APK ผ่าน GitHub Actions `android-apk` (`.github/workflows/android.yml`) · เครื่อง cloud นี้สร้าง APK เองไม่ได้ (เข้า Google Maven ไม่ได้) ใช้ได้แค่ทดสอบตรรกะ/e2e ในเบราว์เซอร์
+- คลังจำไฟล์ด้วยลายนิ้วมือจากเนื้อหา (`android/www/js/lib/fingerprint.js` ต้องตรงกับ `Fingerprint.java` — มีเทสต์เทียบ) · id คลิป = ลายนิ้วมือ · เปลี่ยนชื่อ/ย้ายไฟล์แล้วป้ายไม่หาย
+- **ห้ามเพิ่มโค้ดที่ย้าย/ลบ/เปลี่ยนชื่อ/เขียนไฟล์วิดีโอ และห้ามขอสิทธิ์เขียนไฟล์** จนกว่า Han สั่งชัด ๆ (มี `android/tests/safety.test.js` เฝ้า) · ห้ามเรียกเครือข่าย/AI เสียเงินอัตโนมัติ
+- แก้ schema IndexedDB `opv-android` ต้องเพิ่ม `VERSION` ใน `android/www/js/db.js` พร้อม migration · ไฟล์ใหม่/แก้ใน `android/` ไม่ต้องแตะ `sw.js` (APK ไม่มี service worker)
+- ทดสอบ: `npm test` (รวมแอนดรอยด์) และ `NODE_PATH=$(npm root -g) npm run test:android:e2e` (ต้องมี ffmpeg)
+
 ## วิธีรันและทดสอบ
 - `npm start` → http://localhost:8080 · `npm test` (unit, `node:test`) · `npm run test:e2e` (Chromium)
 - e2e ต้องหา playwright ให้เจอ: ในเครื่อง cloud ใช้ `NODE_PATH=$(npm root -g) npm run test:e2e` (สคริปต์โหลดผ่าน `createRequire`)

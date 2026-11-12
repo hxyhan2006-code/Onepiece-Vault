@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "start": "node scripts/serve.js",
-    "test": "node --test tests/*.test.js",
-    "test:e2e": "node tests/e2e.smoke.mjs"
+    "test": "node --test tests/*.test.js android/tests/*.test.js",
+    "test:e2e": "node tests/e2e.smoke.mjs",
+    "test:android:e2e": "node android/tests/e2e.mjs"
   }
 }
