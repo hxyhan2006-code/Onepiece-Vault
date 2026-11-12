@@ -13,7 +13,7 @@ function open() {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath });
       }
     };
-    r.onsuccess = () => res(r.result);
+    r.onsuccess = () => { r.result.onversionchange = () => r.result.close(); res(r.result); };
     r.onerror = () => rej(r.error);
   });
   return dbp;

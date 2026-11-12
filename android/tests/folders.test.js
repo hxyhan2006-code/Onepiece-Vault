@@ -69,7 +69,8 @@ test('ตัวหลักอยู่นอกโฟลเดอร์ แต�
   assert.deepEqual(r.clips[0].copies.map((c) => c.path), [copyInScope.path]);
   assert.ok(visibleInScope(r.clips[0], 'Pictures/Gallery/owner'));
   const c = libraryCounts(r.clips, 'Pictures/Gallery/owner');
-  assert.deepEqual([c.clips, c.copies, c.files], [1, 1, 2]);
+  assert.deepEqual([c.clips, c.copies, c.files], [1, 0, 1]); // ในโฟลเดอร์นี้มีไฟล์เดียว (ตัวหลักอยู่ข้างนอก)
+  assert.equal(libraryCounts(r.clips, '').files, 2); // ดูทุกโฟลเดอร์ = 2 ไฟล์ (1 คลิป + ซ้ำ 1)
 });
 
 test('สำเนาที่อยู่นอกขอบเขตสแกนรอบนี้ ยังถูกจำไว้ ไม่หายไปจากข้อมูลไฟล์ซ้ำ', () => {
@@ -81,12 +82,14 @@ test('สำเนาที่อยู่นอกขอบเขตสแก�
   const r = reconcile(first, [p], paths([p, q]), 2); // สแกนเฉพาะ owner แต่ระบบยังเห็นสำเนาใน Download
   assert.deepEqual(locs(r.clips[0]), [p.path, q.path].sort());
   assert.equal(r.stats.moved + r.stats.renamed, 0);
-  assert.equal(libraryCounts(r.clips, 'Pictures/Gallery/owner').files, 2);
+  assert.equal(libraryCounts(r.clips, 'Pictures/Gallery/owner').files, 1); // นับเฉพาะไฟล์ในโฟลเดอร์ที่เลือก
+  assert.equal(libraryCounts(r.clips, '').files, 2);
   // ถ้าสำเนาใน Download ถูกลบจริง (ระบบไม่เห็นแล้ว) → เหลือไฟล์เดียว ไม่มีไฟล์ซ้ำ
   const gone = reconcile(r.clips, [p], paths([p]), 3);
   assert.equal(gone.clips[0].copies.length, 0);
   assert.equal(gone.clips[0].path, p.path);
   assert.equal(libraryCounts(gone.clips, 'Pictures/Gallery/owner').files, 1);
+  assert.equal(libraryCounts(gone.clips, '').files, 1);
 });
 
 test('โหมดรายการไม่ครบ (trustListing=false): ไม่ถือว่าไฟล์ที่ไม่ได้เลือกหาย และเปลี่ยนชื่อยังจับได้', () => {
@@ -124,4 +127,26 @@ test('หลักพันไฟล์ + ไฟล์ซ้ำ + หลาย�
   assert.equal(all.files, files.length);
   assert.equal(all.clips, new Set(files.map((f) => f.fp)).size);
   assert.equal(scopeClips(r3.clips, scope).length, libraryCounts(r3.clips, scope).clips + libraryCounts(r3.clips, scope).missing);
+});
+
+test('สแกนเฉพาะโฟลเดอร์: คลิปที่ซ่อนอยู่ไม่ถูกแตะเลย แม้รายการจากระบบจะไม่ครบ', () => {
+  const hidden = it('v1-h', 'Movies/h.mp4');
+  const first = reconcile([], [hidden], paths([hidden]), 1).clips.map((c) => ({ ...c, arcId: 'zou' }));
+  const scope = 'Pictures/Gallery/owner';
+  // รายการจากระบบไม่เห็น Movies/h.mp4 เลย (เช่นการ์ดความจำหลุด) แต่เรากำลังสแกนแค่ owner
+  const r = reconcile(first, [], new Set(), 2, { canMarkMissing: (c) => visibleInScope(c, scope) });
+  assert.equal(r.stats.missing, 0);
+  assert.equal(r.clips[0].status, 'present');
+  assert.equal(r.clips[0].arcId, 'zou');
+  const viz = it('v1-v', 'Pictures/Gallery/owner/v.mp4');
+  const f2 = reconcile(r.clips, [viz], paths([viz]), 3).clips;
+  const gone = reconcile(f2, [], new Set(), 4, { canMarkMissing: (c) => visibleInScope(c, scope) });
+  assert.equal(gone.stats.missing, 1); // คลิปในโฟลเดอร์ที่เลือกหายจริง = ทำเครื่องหมาย
+});
+
+test('path ของเครื่องจริงหลายแบบ', () => {
+  for (const p of ['/storage/emulated/0/Pictures/Gallery/owner/a.mp4', '/storage/self/primary/Pictures/Gallery/owner/a.mp4', '/data/media/0/Pictures/Gallery/owner/a.mp4',
+    '/mnt/sdcard/Pictures/Gallery/owner/a.mp4', '/mnt/media_rw/1A2B-3C4D/Pictures/Gallery/owner/a.mp4', '/storage/1A2B-3C4D/Pictures/Gallery/owner/a.mp4']) {
+    assert.equal(relativeDir(p), 'Pictures/Gallery/owner', p);
+  }
 });

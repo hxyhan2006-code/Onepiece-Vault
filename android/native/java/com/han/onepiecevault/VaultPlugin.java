@@ -70,7 +70,13 @@ public class VaultPlugin extends Plugin {
         Uri collection = Build.VERSION.SDK_INT >= 29
             ? MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
             : MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
-        String[] proj = {
+        boolean hasRel = Build.VERSION.SDK_INT >= 29;
+        String[] proj = hasRel ? new String[] {
+            MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE,
+            MediaStore.Video.Media.DATE_MODIFIED, MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.WIDTH, MediaStore.Video.Media.HEIGHT, MediaStore.Video.Media.DATA,
+            MediaStore.MediaColumns.RELATIVE_PATH
+        } : new String[] {
             MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.DATE_MODIFIED, MediaStore.Video.Media.DURATION,
             MediaStore.Video.Media.WIDTH, MediaStore.Video.Media.HEIGHT, MediaStore.Video.Media.DATA
@@ -85,7 +91,9 @@ public class VaultPlugin extends Plugin {
                     JSObject o = new JSObject();
                     o.put("uri", Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id)).toString());
                     o.put("name", name == null ? ("video-" + id) : name);
-                    o.put("path", data != null ? data : ("content:" + id));
+                    String rel = hasRel ? c.getString(8) : null;
+                    String fallback = (rel != null && name != null) ? ("/storage/emulated/0/" + rel + name) : ("content:" + id);
+                    o.put("path", data != null ? data : fallback);
                     o.put("size", c.getLong(2));
                     o.put("mtime", c.getLong(3) * 1000L);
                     o.put("durationMs", c.getLong(4));

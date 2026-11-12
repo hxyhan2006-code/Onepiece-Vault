@@ -8,9 +8,10 @@ const pickFile = (s) => ({ name: s.name, path: s.path, uri: s.uri || '', folder:
  * @param existing  คลิปในฐานข้อมูล
  * @param scanned   ไฟล์ที่สแกนแล้ว [{fp, name, path, uri, size, mtime, ...}]
  * @param listedPaths Set ของ path ทั้งหมดที่ระบบเห็นในเครื่อง (รวมไฟล์ที่อยู่นอกโฟลเดอร์/ไม่ผ่านตัวกรองชื่อ) — ใช้ตัดสินว่าไฟล์ "หาย" หรือแค่ถูกกรองออก
+ * @param canMarkMissing เลือกว่าคลิปไหนมีสิทธิ์ถูกทำเครื่องหมายไฟล์หาย (สแกนเฉพาะโฟลเดอร์ = ไม่แตะคลิปนอกโฟลเดอร์ที่ซ่อนอยู่)
  * @param trustListing false = รายการไม่ครบ (โหมดเบราว์เซอร์เห็นแค่ไฟล์ที่เลือก) → ไม่ถือว่าไฟล์ที่ไม่อยู่ในรายการ "หาย"
  */
-export function reconcile(existing, scanned, listedPaths, now = Date.now(), { trustListing = true } = {}) {
+export function reconcile(existing, scanned, listedPaths, now = Date.now(), { trustListing = true, canMarkMissing = () => true } = {}) {
   const byId = new Map(existing.map((c) => [c.id, c]));
   const out = new Map(byId);
   const groups = new Map();
@@ -54,7 +55,7 @@ export function reconcile(existing, scanned, listedPaths, now = Date.now(), { tr
   }
 
   for (const [id, c] of byId) {
-    if (groups.has(id) || c.status === 'missing') continue;
+    if (groups.has(id) || c.status === 'missing' || !canMarkMissing(c)) continue;
     if ((trustListing && !listedPaths.has(c.path)) || claimed.has(c.path)) {
       out.set(id, { ...c, status: 'missing', copies: [] });
       stats.missing++;

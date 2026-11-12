@@ -2,7 +2,7 @@
 // ขอบเขตโฟลเดอร์ = path แบบสัมพัทธ์จากที่เก็บข้อมูล เช่น "Pictures/Gallery/owner" (รวมโฟลเดอร์ย่อยทั้งหมดเสมอ) · ว่าง = ทุกโฟลเดอร์
 export const DEFAULT_SCOPE = 'Pictures/Gallery/owner';
 
-const stripRoot = (p) => String(p).replace(/\\/g, '/').replace(/^web:/, '').replace(/^\/storage\/(?:emulated\/\d+|self\/primary|[^/]+)\//, '').replace(/^\/sdcard\//, '').replace(/^\/+/, '');
+const stripRoot = (p) => String(p).replace(/\\/g, '/').replace(/^web:/, '').replace(/^\/(?:storage\/(?:emulated\/\d+|self\/primary|[^/]+)|data\/media\/\d+|mnt\/media_rw\/[^/]+|mnt\/sdcard|sdcard)\//, '').replace(/^\/+/, '');
 
 /** โฟลเดอร์ของไฟล์ แบบสัมพัทธ์ ("Pictures/Gallery/owner/a") · ไฟล์ที่ไม่มีโฟลเดอร์ = "" */
 export function relativeDir(path) {
@@ -28,21 +28,33 @@ export const locationsOf = (c) => [{ path: c.path, name: c.name }, ...(c.copies 
 export const visibleInScope = (c, scope) => !normScope(scope) || locationsOf(c).some((l) => inScope(l.path, scope));
 export const scopeClips = (clips, scope) => clips.filter((c) => visibleInScope(c, scope));
 
+/** ไฟล์ของคลิปที่อยู่ในโฟลเดอร์ที่เลือกจริง (ตัวหลัก + สำเนา) */
+export const locationsInScope = (c, scope) => locationsOf(c).filter((l) => inScope(l.path, scope));
+
 /**
  * ตัวนับกลาง (หน้าคลัง/ตรวจซ้ำ/ตั้งค่า/สรุปสแกน ใช้ชุดเดียวกัน → ตัวเลขต้องตรงกัน)
- * ไฟล์ = คลิป + ไฟล์ซ้ำเกิน  (นับเฉพาะคลิปที่ไฟล์ยังอยู่)
+ * นับเฉพาะไฟล์ที่อยู่ในโฟลเดอร์ที่เลือกจริง:  ไฟล์ = คลิป + ไฟล์ซ้ำเกิน  (นับเฉพาะคลิปที่ไฟล์ยังอยู่)
  */
 export function libraryCounts(clips, scope) {
   const visible = scopeClips(clips, scope);
   const present = visible.filter((c) => c.status === 'present');
-  const copies = present.reduce((n, c) => n + (c.copies?.length || 0), 0);
+  const files = present.reduce((n, c) => n + Math.max(1, locationsInScope(c, scope).length), 0);
   return {
-    clips: present.length, copies, files: present.length + copies,
-    dupGroups: present.filter((c) => c.copies?.length).length,
+    clips: present.length, copies: files - present.length, files,
+    dupGroups: present.filter((c) => locationsInScope(c, scope).length > 1).length,
     missing: visible.length - present.length,
     hidden: clips.length - visible.length, // อยู่นอกโฟลเดอร์ที่เลือก (ซ่อน ไม่ได้ลบ)
     total: clips.length,
   };
+}
+
+/** กลุ่มไฟล์เนื้อหาเดียวกันตั้งแต่ 2 ที่ขึ้นไปภายในโฟลเดอร์ที่เลือก (ดูอย่างเดียว ไม่มีการลบ) */
+export function scopedDuplicateGroups(clips, scope) {
+  return scopeClips(clips, scope)
+    .filter((c) => c.status === 'present')
+    .map((c) => ({ id: c.id, name: c.name, size: c.size, locations: locationsInScope(c, scope) }))
+    .filter((g) => g.locations.length > 1)
+    .sort((a, b) => b.size * b.locations.length - a.size * a.locations.length);
 }
 
 /** ต้นไม้โฟลเดอร์จากรายการ path: [{dir, depth, own, total}] — total รวมโฟลเดอร์ย่อย */

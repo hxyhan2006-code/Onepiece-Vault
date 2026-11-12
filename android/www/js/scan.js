@@ -5,7 +5,7 @@ import * as db from './db.js';
 import * as native from './native.js';
 import { reconcile } from './lib/reconcile.js';
 import { nameMatcher } from './lib/search.js';
-import { DEFAULT_SCOPE, inScope, libraryCounts, scopeClips, normScope } from './lib/folders.js';
+import { DEFAULT_SCOPE, inScope, libraryCounts, scopeClips, normScope, visibleInScope } from './lib/folders.js';
 
 const FP_WORKERS = 3, THUMB_WORKERS = 2, FLUSH_EVERY = 50, RETRY_THUMB_MS = 24 * 3600 * 1000;
 const keyOf = (x) => `${x.path}|${x.size}|${x.mtime}`;
@@ -17,9 +17,8 @@ async function pool(list, n, signal, fn) {
 
 export const getScope = async () => normScope(await db.getMeta('scanFolder', DEFAULT_SCOPE));
 
-async function doScan(picked, signal, onProgress) {
+async function doScan(picked, scope, signal, onProgress) {
   if (!(await native.ensureAccess())) throw new Error('ยังไม่ได้รับสิทธิ์อ่านวิดีโอ กรุณาอนุญาตในหน้าต่างที่ขึ้นมา');
-  const scope = await getScope();
   const nameOk = nameMatcher(await db.getMeta('scanFilter', ''));
   onProgress({ phase: 'list', done: 0, total: 0 });
   const all = (await native.listVideos(picked)).filter((x) => x.size > 0);
@@ -54,7 +53,7 @@ async function doScan(picked, signal, onProgress) {
 
   // อ่านฐานข้อมูลสดอีกครั้งหลังใช้เวลาอ่านลายนิ้วมือ แล้วเขียนเฉพาะคลิปที่เปลี่ยน (ไม่ทับป้ายที่ Han เพิ่งแก้ระหว่างสแกน)
   const live = await db.allClips();
-  const r = reconcile(live, items, new Set(all.map((x) => x.path)), Date.now(), { trustListing: native.isNative });
+  const r = reconcile(live, items, new Set(all.map((x) => x.path)), Date.now(), { trustListing: native.isNative, canMarkMissing: (c) => visibleInScope(c, scope) });
   const before = new Set(live);
   await db.putClips(r.clips.filter((c) => !before.has(c)));
   await db.pruneFpCache(new Set(all.map(keyOf)));
@@ -99,9 +98,10 @@ export function startScan(picked) {
   const progress = (p) => { state = { ...state, ...p }; emit(); };
   promise = (async () => {
     try {
-      const result = await doScan(picked, signal, progress);
+      const scope = await getScope(); // ใช้ขอบเขตเดียวตลอดรอบ (ถ้าผู้ใช้เปลี่ยนโฟลเดอร์ระหว่างสแกน มีผลรอบหน้า)
+      const result = await doScan(picked, scope, signal, progress);
       state = { ...state, result };
-      if (!result.aborted) state.thumbs = await doThumbs(await getScope(), signal, progress);
+      if (!result.aborted) state.thumbs = await doThumbs(scope, signal, progress);
       if (signal.aborted && !result.aborted) state.thumbsStopped = true; // หยุดตอนสร้างภาพตัวอย่าง: รายการคลิปบันทึกไปแล้ว
     } catch (e) { state = { ...state, error: e.message || 'สแกนไม่สำเร็จ' }; }
     state = { ...state, running: false };

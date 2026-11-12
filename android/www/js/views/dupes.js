@@ -1,6 +1,5 @@
 import * as db from '../db.js';
-import { duplicateGroups } from '../lib/reconcile.js';
-import { scopeClips, libraryCounts } from '../lib/folders.js';
+import { scopedDuplicateGroups, libraryCounts } from '../lib/folders.js';
 import { esc, formatBytes } from '../ui.js';
 
 const n = (x) => Number(x).toLocaleString('th-TH');
@@ -8,7 +7,7 @@ const n = (x) => Number(x).toLocaleString('th-TH');
 export async function render(root, { scope }) {
   const clips = await db.allClips();
   const counts = libraryCounts(clips, scope);
-  const groups = duplicateGroups(scopeClips(clips, scope)); // ตัวเลขชุดเดียวกับหน้าคลัง: ไฟล์ซ้ำเกิน = counts.copies
+  const groups = scopedDuplicateGroups(clips, scope); // ตัวเลขชุดเดียวกับหน้าคลัง: ไฟล์ซ้ำเกิน = counts.copies
   const wasted = groups.reduce((s, g) => s + g.size * (g.locations.length - 1), 0);
   root.innerHTML = `<h2>ตรวจไฟล์ซ้ำ</h2>
     <p class="meta">เทียบจากเนื้อหาไฟล์ (ลายนิ้วมือ) ไม่ใช่ชื่อ · หน้านี้ดูได้อย่างเดียว แอปไม่ลบไฟล์ใด ๆ</p>

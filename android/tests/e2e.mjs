@@ -251,7 +251,11 @@ await old.evaluate(() => new Promise((res, rej) => {
 await old.goto(url);
 await old.waitForSelector('.tile:has-text("old-clip.mp4")');
 assert.match(await old.textContent('.tile'), /Zou · ตอน 7/);
-assert.match(await old.textContent('#counts'), /1 คลิป \+ ไฟล์ซ้ำ 1 = 2 ไฟล์/);
+assert.match(await old.textContent('#counts'), /1 คลิป \+ ไฟล์ซ้ำ 0 = 1 ไฟล์/); // สำเนาเดิมอยู่ใน Download (นอกโฟลเดอร์ที่เลือก) ไม่นับในโฟลเดอร์ owner
+await old.evaluate(() => new Promise((res) => { const r = indexedDB.open('opv-android'); r.onsuccess = () => { const tx = r.result.transaction('meta', 'readwrite'); tx.objectStore('meta').put({ key: 'scanFolder', value: '' }); tx.oncomplete = () => { r.result.close(); res(); }; }; }));
+await old.reload();
+await old.waitForSelector('.tile');
+assert.match(await old.textContent('#counts'), /1 คลิป \+ ไฟล์ซ้ำ 1 = 2 ไฟล์/); // ดูทุกโฟลเดอร์: เห็นสำเนาด้วย
 const ver = await old.evaluate(() => new Promise((res) => { const r = indexedDB.open('opv-android'); r.onsuccess = () => { res({ v: r.result.version, stores: [...r.result.objectStoreNames].sort() }); r.result.close(); }; }));
 assert.deepEqual(ver, { v: 2, stores: ['clips', 'fpcache', 'meta', 'thumbs'] });
 await ctx2.close();
