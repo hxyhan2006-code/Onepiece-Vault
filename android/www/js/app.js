@@ -2,6 +2,7 @@
 import { isNative } from './native.js';
 import * as db from './db.js';
 import { DEFAULT_TAXONOMY, validateTaxonomy } from './lib/taxonomy.js';
+import { getScope } from './scan.js';
 import * as library from './views/library.js';
 import * as clip from './views/clip.js';
 import * as dupes from './views/dupes.js';
@@ -21,9 +22,10 @@ async function route() {
   cleanup?.();
   cleanup = null;
   const tax = validateTaxonomy(await db.getMeta('taxonomy', DEFAULT_TAXONOMY));
+  const scope = await getScope();
   root.replaceChildren();
   window.scrollTo(0, 0);
-  cleanup = await view.render(root, { tax, arg: arg ? decodeURIComponent(arg) : '' });
+  cleanup = await view.render(root, { tax, scope, arg: arg ? decodeURIComponent(arg) : '' });
 }
 
 addEventListener('hashchange', route);

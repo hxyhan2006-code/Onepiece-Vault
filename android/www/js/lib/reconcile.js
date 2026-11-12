@@ -1,14 +1,16 @@
 // จับคู่ผลสแกนกับฐานข้อมูล โดยใช้ลายนิ้วมือ (id ของคลิป = fingerprint)
 // → ไฟล์ที่เปลี่ยนชื่อ/ย้ายที่ ยังเป็นคลิปเดิม ป้ายที่ติดไว้ไม่หาย · ไม่มีการลบคลิปออกจากฐานข้อมูล แค่ทำเครื่องหมาย "ไฟล์หาย"
 export const folderOf = (p) => String(p).slice(0, Math.max(0, String(p).lastIndexOf('/')));
+const asCopy = (s) => ({ path: s.path, name: s.name, uri: s.uri || '', size: s.size || 0, mtime: s.mtime || 0 });
 const pickFile = (s) => ({ name: s.name, path: s.path, uri: s.uri || '', folder: folderOf(s.path), size: s.size, mtime: s.mtime || 0, durationMs: s.durationMs || 0, w: s.w || 0, h: s.h || 0 });
 
 /**
  * @param existing  คลิปในฐานข้อมูล
  * @param scanned   ไฟล์ที่สแกนแล้ว [{fp, name, path, uri, size, mtime, ...}]
- * @param listedPaths Set ของ path ทั้งหมดที่ระบบเห็นในเครื่อง (รวมไฟล์ที่ไม่ผ่านตัวกรองชื่อ) — ใช้ตัดสินว่าไฟล์ "หาย" หรือแค่ถูกกรองออก
+ * @param listedPaths Set ของ path ทั้งหมดที่ระบบเห็นในเครื่อง (รวมไฟล์ที่อยู่นอกโฟลเดอร์/ไม่ผ่านตัวกรองชื่อ) — ใช้ตัดสินว่าไฟล์ "หาย" หรือแค่ถูกกรองออก
+ * @param trustListing false = รายการไม่ครบ (โหมดเบราว์เซอร์เห็นแค่ไฟล์ที่เลือก) → ไม่ถือว่าไฟล์ที่ไม่อยู่ในรายการ "หาย"
  */
-export function reconcile(existing, scanned, listedPaths, now = Date.now()) {
+export function reconcile(existing, scanned, listedPaths, now = Date.now(), { trustListing = true } = {}) {
   const byId = new Map(existing.map((c) => [c.id, c]));
   const out = new Map(byId);
   const groups = new Map();
@@ -25,8 +27,13 @@ export function reconcile(existing, scanned, listedPaths, now = Date.now()) {
   for (const [fp, items] of groups) {
     items.sort((a, b) => a.path.localeCompare(b.path));
     const old = byId.get(fp);
-    const primary = (old && items.find((i) => i.path === old.path)) || items[0];
-    const copies = items.filter((i) => i !== primary).map(({ path, name, uri }) => ({ path, name, uri: uri || '' }));
+    // ไฟล์เดิมของคลิปนี้ที่ยังอยู่ในเครื่องแต่อยู่นอกขอบเขตสแกนรอบนี้ (เช่นเลือกสแกนแค่บางโฟลเดอร์) → ยังเป็นตัวหลัก ไม่นับเป็น "ย้ายที่"
+    const keepOld = trustListing && old && old.status === 'present' && !items.some((i) => i.path === old.path) && listedPaths.has(old.path) && !claimed.has(old.path);
+    const primary = keepOld ? null : (old && items.find((i) => i.path === old.path)) || items[0];
+    const scannedCopies = items.filter((i) => i !== primary).map(asCopy);
+    // สำเนาเดิมที่ยังอยู่แต่ไม่ได้สแกนรอบนี้ (นอกขอบเขต) เก็บไว้ ไม่ให้ข้อมูลไฟล์ซ้ำหาย
+    const keptCopies = (old?.copies || []).filter((c) => trustListing && listedPaths.has(c.path) && !claimed.has(c.path));
+    const copies = [...scannedCopies, ...keptCopies.filter((k) => k.path !== primary?.path)];
     if (copies.length) stats.duplicates++;
     if (!old) {
       out.set(fp, { id: fp, ...pickFile(primary), status: 'present', firstSeen: now, lastSeen: now, copies, history: [],
@@ -35,9 +42,9 @@ export function reconcile(existing, scanned, listedPaths, now = Date.now()) {
       events.push({ type: 'added', id: fp, to: primary.path });
       continue;
     }
-    const next = { ...old, ...pickFile(primary), status: 'present', lastSeen: now, copies };
+    const next = { ...old, ...(primary ? pickFile(primary) : {}), status: 'present', lastSeen: now, copies };
     if (old.status === 'missing') stats.back++;
-    if (primary.path !== old.path) {
+    if (primary && primary.path !== old.path) {
       const type = folderOf(primary.path) === folderOf(old.path) ? 'renamed' : 'moved';
       stats[type]++;
       events.push({ type, id: fp, from: old.path, to: primary.path });
@@ -48,7 +55,7 @@ export function reconcile(existing, scanned, listedPaths, now = Date.now()) {
 
   for (const [id, c] of byId) {
     if (groups.has(id) || c.status === 'missing') continue;
-    if (!listedPaths.has(c.path) || claimed.has(c.path)) {
+    if ((trustListing && !listedPaths.has(c.path)) || claimed.has(c.path)) {
       out.set(id, { ...c, status: 'missing', copies: [] });
       stats.missing++;
       events.push({ type: 'missing', id, from: c.path });

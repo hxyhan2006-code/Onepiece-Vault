@@ -5,6 +5,7 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { color-scheme: dark; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, "Noto Sans Thai", sans-serif; }
 .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: var(--surface); border-bottom: 1px solid var(--line); }
 .top h1 { font-size: 1.1rem; margin: 0; color: var(--accent); flex: 1; }
@@ -50,3 +51,7 @@ dialog.sheet { width: min(92vw, 460px); border: 1px solid var(--line); border-ra
 dialog.sheet::backdrop { background: #000a; }
 .sheet-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 .path { font-size: .8rem; color: var(--muted); word-break: break-all; }
+
+.folder-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 12px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.folder-row.on { background: var(--surface2); color: var(--accent); }
+.folder-row .cnt { color: var(--muted); font-size: .85rem; flex: none; }

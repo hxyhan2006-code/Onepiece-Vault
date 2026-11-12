@@ -48,6 +48,8 @@
 - คลังจำไฟล์ด้วยลายนิ้วมือจากเนื้อหา (`android/www/js/lib/fingerprint.js` ต้องตรงกับ `Fingerprint.java` — มีเทสต์เทียบ) · id คลิป = ลายนิ้วมือ · เปลี่ยนชื่อ/ย้ายไฟล์แล้วป้ายไม่หาย
 - **ห้ามเพิ่มโค้ดที่ย้าย/ลบ/เปลี่ยนชื่อ/เขียนไฟล์วิดีโอ และห้ามขอสิทธิ์เขียนไฟล์** จนกว่า Han สั่งชัด ๆ (มี `android/tests/safety.test.js` เฝ้า) · ห้ามเรียกเครือข่าย/AI เสียเงินอัตโนมัติ
 - แก้ schema IndexedDB `opv-android` ต้องเพิ่ม `VERSION` ใน `android/www/js/db.js` พร้อม migration · ไฟล์ใหม่/แก้ใน `android/` ไม่ต้องแตะ `sw.js` (APK ไม่มี service worker)
+- **ตัวกรอง 2 ชั้นแยกกัน**: โฟลเดอร์ (`scanFolder` ค่าเริ่มต้น `Pictures/Gallery/owner` รวมโฟลเดอร์ย่อย ตรรกะ `lib/folders.js`) กับชื่อไฟล์ (`scanFilter` ค่าเริ่มต้นว่าง) · เปลี่ยนโฟลเดอร์ = แค่ซ่อน/แสดง ห้ามลบคลิปหรือป้ายนอกโฟลเดอร์ · ตัวเลขนับทุกหน้าต้องมาจาก `libraryCounts` (ไฟล์ = คลิป + ซ้ำ) · path จริงของเครื่องคือ `/storage/emulated/0/...`
+- สแกนเป็นสถานะกลางใน `scan.js` (รอบเดียว หยุดได้ ทำต่อได้ด้วย store `fpcache`) · `opv-android` ตอนนี้ VERSION 2
 - ทดสอบ: `npm test` (รวมแอนดรอยด์) และ `NODE_PATH=$(npm root -g) npm run test:android:e2e` (ต้องมี ffmpeg)
 
 ## วิธีรันและทดสอบ

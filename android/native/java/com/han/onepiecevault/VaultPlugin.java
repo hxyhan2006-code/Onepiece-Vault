@@ -126,14 +126,29 @@ public class VaultPlugin extends Plugin {
         try {
             mmr.setDataSource(getContext(), Uri.parse(uri));
             long atUs = Math.min(1_000_000L, durMs * 1000L / 3);
-            Bitmap b = mmr.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
-            if (b == null) b = mmr.getFrameAtTime();
-            if (b == null) { call.reject("no frame"); return; }
+            int vw = parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+            int vh = parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+            int rot = parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION));
+            if (rot == 90 || rot == 270) { int t = vw; vw = vh; vh = t; }
             int w = 240;
-            int h = Math.max(1, Math.round(w * (float) b.getHeight() / b.getWidth()));
-            Bitmap s = Bitmap.createScaledBitmap(b, w, h, true);
+            Bitmap s;
+            if (Build.VERSION.SDK_INT >= 27 && vw > 0 && vh > 0) {
+                // ย่อภาพตั้งแต่ตอนดึงเฟรม ไม่โหลดภาพเต็ม 4K เข้าหน่วยความจำ (ไฟล์เป็นพันต่อเนื่องจะไม่ทำให้แอปเด้ง)
+                int h = Math.max(1, Math.round(w * (float) vh / vw));
+                s = mmr.getScaledFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, w, h);
+                if (s == null) s = mmr.getScaledFrameAtTime(-1, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, w, h);
+            } else {
+                Bitmap b = mmr.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                if (b == null) b = mmr.getFrameAtTime();
+                if (b == null) { call.reject("no frame"); return; }
+                int h = Math.max(1, Math.round(w * (float) b.getHeight() / b.getWidth()));
+                s = Bitmap.createScaledBitmap(b, w, h, true);
+                if (s != b) b.recycle();
+            }
+            if (s == null) { call.reject("no frame"); return; }
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             s.compress(Bitmap.CompressFormat.JPEG, 72, out);
+            s.recycle();
             JSObject r = new JSObject();
             r.put("data", Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP));
             call.resolve(r);
@@ -142,6 +157,10 @@ public class VaultPlugin extends Plugin {
         } finally {
             try { mmr.release(); } catch (Exception ignored) {}
         }
+    }
+
+    private static int parseInt(String v) {
+        try { return v == null ? 0 : Integer.parseInt(v.trim()); } catch (NumberFormatException e) { return 0; }
     }
 
     @PluginMethod

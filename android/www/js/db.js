@@ -1,7 +1,7 @@
 // ชั้นข้อมูลทั้งหมด (IndexedDB 'opv-android'): clips (id = ลายนิ้วมือไฟล์), thumbs (Blob ภาพตัวอย่าง), meta (ตั้งค่า)
 // ไม่เก็บวิดีโอ — วิดีโอยังอยู่ที่เดิมในเครื่อง ไม่มีการคัดลอกซ้ำ
 const NAME = 'opv-android';
-const VERSION = 1;
+const VERSION = 2; // v2: เพิ่ม store fpcache (จำลายนิ้วมือที่อ่านแล้ว ใช้สแกนต่อจากที่ค้าง) — ข้อมูลเดิมไม่ถูกแตะ
 let dbp;
 
 function open() {
@@ -9,9 +9,9 @@ function open() {
     const r = indexedDB.open(NAME, VERSION);
     r.onupgradeneeded = () => {
       const db = r.result;
-      db.createObjectStore('clips', { keyPath: 'id' });
-      db.createObjectStore('thumbs', { keyPath: 'id' });
-      db.createObjectStore('meta', { keyPath: 'key' });
+      for (const [name, keyPath] of [['clips', 'id'], ['thumbs', 'id'], ['meta', 'key'], ['fpcache', 'key']]) {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath });
+      }
     };
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -42,5 +42,12 @@ export const getThumb = (id) => run('thumbs', 'readonly', (tx) => wrap(tx.object
 export const thumbIds = () => run('thumbs', 'readonly', (tx) => wrap(tx.objectStore('thumbs').getAllKeys()));
 export const getMeta = (key, def) => run('meta', 'readonly', (tx) => wrap(tx.objectStore('meta').get(key))).then((r) => (r ? r.value : def));
 export const setMeta = (key, value) => run('meta', 'readwrite', (tx) => { tx.objectStore('meta').put({ key, value }); });
+/** ที่จำลายนิ้วมือ: key = path|ขนาด|เวลาแก้ไข → fp (อ่านไฟล์ซ้ำเฉพาะที่เปลี่ยน · สแกนที่ถูกหยุด/แอปปิดกลางคัน ทำต่อได้) */
+export const getFpCache = () => run('fpcache', 'readonly', (tx) => wrap(tx.objectStore('fpcache').getAll())).then((rows) => new Map(rows.map((r) => [r.key, r.fp])));
+export const putFpCache = (rows) => run('fpcache', 'readwrite', (tx) => { const s = tx.objectStore('fpcache'); rows.forEach((r) => s.put(r)); });
+export const pruneFpCache = (keep) => run('fpcache', 'readwrite', async (tx) => {
+  const s = tx.objectStore('fpcache');
+  for (const k of await wrap(s.getAllKeys())) if (!keep.has(k)) s.delete(k);
+});
 /** ล้างรายการในแอป (ไม่แตะวิดีโอ) */
-export const clearIndex = () => run(['clips', 'thumbs'], 'readwrite', (tx) => { tx.objectStore('clips').clear(); tx.objectStore('thumbs').clear(); });
+export const clearIndex = () => run(['clips', 'thumbs', 'fpcache'], 'readwrite', (tx) => { tx.objectStore('clips').clear(); tx.objectStore('thumbs').clear(); tx.objectStore('fpcache').clear(); });
