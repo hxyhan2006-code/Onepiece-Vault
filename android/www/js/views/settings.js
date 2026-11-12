@@ -34,9 +34,12 @@ export async function render(root, { tax }) {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     try {
       const incoming = validateBackup(await f.text());
-      const m = mergeBackup(await db.allClips(), incoming);
-      if (!(await confirmDialog(`นำเข้า ${incoming.length} คลิป (เพิ่มใหม่ ${m.added} · อัปเดตป้าย ${m.updated}) รวมกับของเดิม?`))) return;
-      await db.putClips(m.clips); err(''); toast('นำเข้าแล้ว'); dispatchEvent(new HashChangeEvent('hashchange'));
+      const preview = mergeBackup(await db.allClips(), incoming);
+      if (!(await confirmDialog(`นำเข้า ${incoming.length} คลิป (เพิ่มใหม่ ${preview.added} · อัปเดตป้าย ${preview.updated}) รวมกับของเดิม?`))) return;
+      const cur = await db.allClips(); // อ่านสดอีกครั้งหลังกดยืนยัน
+      const m = mergeBackup(cur, incoming);
+      const old = new Set(cur);
+      await db.putClips(m.clips.filter((c) => !old.has(c))); err(''); toast('นำเข้าแล้ว'); dispatchEvent(new HashChangeEvent('hashchange'));
     } catch (ex) { err(ex.message); }
   };
   $('#clear').onclick = async () => {

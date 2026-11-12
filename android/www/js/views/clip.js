@@ -34,7 +34,7 @@ export async function render(root, { tax, arg }) {
     const ep = raw === '' ? null : Number(raw);
     if (ep !== null && (!Number.isInteger(ep) || ep < 0)) { $('#err').textContent = 'เลขตอนต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป'; $('#err').hidden = false; return; }
     const characters = $('#chars').value.split(',').map((x) => x.trim()).filter(Boolean);
-    await db.putClips([{ ...c, arcId: $('#arc').value, episode: ep, characters, notes: $('#notes').value.trim(), updatedAt: Date.now() }]);
+    await db.patchClip(c.id, () => ({ arcId: $('#arc').value, episode: ep, characters, notes: $('#notes').value.trim(), updatedAt: Date.now() }));
     toast('บันทึกป้ายแล้ว');
     location.hash = '#/library';
   };

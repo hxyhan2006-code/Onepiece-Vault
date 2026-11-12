@@ -31,6 +31,12 @@ async function run(stores, mode, fn) {
 export const allClips = () => run('clips', 'readonly', (tx) => wrap(tx.objectStore('clips').getAll()));
 export const getClip = (id) => run('clips', 'readonly', (tx) => wrap(tx.objectStore('clips').get(id)));
 export const putClips = (list) => run('clips', 'readwrite', (tx) => { const s = tx.objectStore('clips'); list.forEach((c) => s.put(c)); });
+/** แก้คลิปเดียวแบบอ่านค่าล่าสุด+เขียนในทรานแซกชันเดียว (กันเขียนทับค่าที่เพิ่งเปลี่ยน) · คลิปไม่มีแล้ว = ข้าม ไม่สร้างระเบียนเสีย */
+export const patchClip = (id, fn) => run('clips', 'readwrite', async (tx) => {
+  const s = tx.objectStore('clips');
+  const cur = await wrap(s.get(id));
+  if (cur) s.put({ ...cur, ...fn(cur) });
+});
 export const putThumb = (id, blob) => run('thumbs', 'readwrite', (tx) => { tx.objectStore('thumbs').put({ id, blob }); });
 export const getThumb = (id) => run('thumbs', 'readonly', (tx) => wrap(tx.objectStore('thumbs').get(id))).then((r) => r?.blob || null);
 export const thumbIds = () => run('thumbs', 'readonly', (tx) => wrap(tx.objectStore('thumbs').getAllKeys()));

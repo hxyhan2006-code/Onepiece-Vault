@@ -15,6 +15,7 @@ export async function runScan({ picked, onProgress = () => {} }) {
   const all = (await native.listVideos(picked)).filter((x) => x.size > 0);
   const listed = new Set(all.map((x) => x.path));
   const items = all.filter((x) => filter(x.name));
+  if (!all.length && (await db.allClips()).length) throw new Error('ระบบไม่เห็นวิดีโอเลยตอนนี้ (การ์ดความจำหรือคลังสื่ออาจยังไม่พร้อม) จึงไม่เปลี่ยนรายการ ลองใหม่อีกครั้ง');
   const existing = await db.allClips();
   if (!native.isNative) existing.forEach((c) => listed.add(c.path)); // เบราว์เซอร์เห็นแค่ไฟล์ที่เลือก ไม่ถือว่าไฟล์อื่นหาย
   const known = new Map(existing.map((c) => [`${c.path}|${c.size}|${c.mtime}`, c.id]));
@@ -26,8 +27,11 @@ export async function runScan({ picked, onProgress = () => {} }) {
     onProgress({ phase: 'scan', done: ++done, total: items.length });
   });
 
-  const r = reconcile(existing, items, listed);
-  await db.putClips(r.clips);
+  // อ่านฐานข้อมูลสดอีกครั้งหลังใช้เวลาอ่านลายนิ้วมือ แล้วเขียนเฉพาะคลิปที่เปลี่ยน (ไม่ทับป้ายที่ Han เพิ่งแก้ระหว่างสแกน)
+  const fresh = await db.allClips();
+  const r = reconcile(fresh, items, listed);
+  const before = new Set(fresh);
+  await db.putClips(r.clips.filter((c) => !before.has(c)));
   return { ...r, failed, total: items.length, ignored: all.length - items.length };
 }
 
@@ -45,7 +49,7 @@ export async function buildThumbs(onProgress = () => {}) {
     } catch { failed++; }
     onProgress({ phase: 'thumb', done: ++done, total: todo.length });
   });
-  if (upd.length) { const fresh = new Map((await db.allClips()).map((c) => [c.id, c])); await db.putClips(upd.map((u) => ({ ...fresh.get(u.id), durationMs: u.durationMs, w: u.w, h: u.h }))); }
+  for (const u of upd) await db.patchClip(u.id, () => ({ durationMs: u.durationMs, w: u.w, h: u.h }));
   return { done, failed, total: todo.length };
 }
 
